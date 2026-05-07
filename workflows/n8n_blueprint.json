@@ -1,0 +1,136 @@
+{
+  "name": "CASA Construction Gatekeeper Intake",
+  "description": "Prototype n8n-style workflow for governed construction document intake and routing.",
+  "nodes": [
+    {
+      "id": "webhook-intake",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "path": "casa/construction/intake",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "expectedPayload": {
+          "file_path": "Path to a text file containing RFI, submittal, change order, or field issue text.",
+          "source": "External source label such as procore, email, slack, or manual."
+        }
+      }
+    },
+    {
+      "id": "execute-gatekeeper",
+      "name": "Execute CASA Parser",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [260, 0],
+      "parameters": {
+        "command": "python -m casa_gatekeeper.main {{$json[\"file_path\"]}} --source {{$json[\"source\"] || \"n8n\"}} --json"
+      }
+    },
+    {
+      "id": "parse-json",
+      "name": "Parse Gatekeeper Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 0],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "return [{ json: JSON.parse($json.stdout) }];"
+      }
+    },
+    {
+      "id": "decision-check",
+      "name": "Check Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [780, 0],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.decision.decision}}",
+              "operation": "equals",
+              "value2": "ALLOW"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "standard-routing",
+      "name": "Standard Routing Placeholder",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1040, -120],
+      "parameters": {
+        "notes": "ALLOW path. Continue into Procore, document control, or standard project workflow routing."
+      }
+    },
+    {
+      "id": "review-halt-alert",
+      "name": "Slack Alert Placeholder",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1040, 120],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#project-controls",
+        "text": "CASA {{$json.decision.decision}}: {{$json.decision.reason}} Required action: {{$json.decision.required_action}}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Execute CASA Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute CASA Parser": {
+      "main": [
+        [
+          {
+            "node": "Parse Gatekeeper Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gatekeeper Result": {
+      "main": [
+        [
+          {
+            "node": "Check Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Decision": {
+      "main": [
+        [
+          {
+            "node": "Standard Routing Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Alert Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

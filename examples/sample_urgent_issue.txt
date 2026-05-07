@@ -1,0 +1,1 @@
+Field issue with blocked crew, schedule impact, and cannot proceed condition at the south loading dock. The layout conflict is holding work, and the project ID is missing from the intake note.
