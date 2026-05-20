@@ -8,7 +8,15 @@ def test_health_endpoint_reports_ok():
     assert response["system"] == "casa-construction-gatekeeper"
 
 
-def test_route_document_endpoint_returns_flattened_response():
+def test_route_document_endpoint_returns_flattened_response(monkeypatch):
+    persisted_records = []
+
+    def fake_persist_audit_record(record):
+        persisted_records.append(record)
+        return {"jsonl": {"status": "saved"}, "airtable": {"status": "skipped"}}
+
+    monkeypatch.setattr("casa_gatekeeper.api.persist_audit_record", fake_persist_audit_record)
+
     response = route_document_endpoint(
         RouteDocumentRequest(
             text=(
@@ -24,3 +32,5 @@ def test_route_document_endpoint_returns_flattened_response():
     assert response.project_id == "8821"
     assert response.priority_level == 2
     assert response.audit_record["source"] == "test-api"
+    assert persisted_records
+    assert persisted_records[0].source == "test-api"

@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from casa_gatekeeper import __version__
-from casa_gatekeeper.audit import to_serializable_dict
+from casa_gatekeeper.audit import AuditSinkError, persist_audit_record, to_serializable_dict
 from casa_gatekeeper.router import route_document
+
+load_dotenv()
 
 
 class RouteDocumentRequest(BaseModel):
@@ -57,6 +60,11 @@ def route_document_endpoint(payload: RouteDocumentRequest) -> RouteDocumentRespo
     """Classify and route a construction document."""
 
     result = route_document(payload.text, source=payload.source)
+    try:
+        persist_audit_record(result["audit_record"])
+    except AuditSinkError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
     audit_record = to_serializable_dict(result["audit_record"])
     document = audit_record["document"]
     decision = audit_record["decision"]

@@ -14,7 +14,7 @@ This prototype demonstrates a governed intake pattern:
 2. Apply deterministic policy rules.
 3. Produce an audit-grade routing decision.
 
-No external API calls are required for the core prototype.
+No external API calls are required for the core prototype. Hosted deployments can optionally write audit records to Airtable.
 
 ## Decision Model
 
@@ -78,6 +78,49 @@ curl -X POST http://127.0.0.1:8000/route-document `
 
 The API returns a flattened response for no-code automation tools plus the full audit record.
 
+Successful API requests also append the full audit record to the JSONL audit log. Set `CASA_AUDIT_LOG_PATH` to choose the local path; it defaults to `audit_log.jsonl`.
+
+## Airtable Audit Sink
+
+For a hosted pilot, Render's local filesystem is ephemeral. Keep JSONL enabled for local debugging, and turn on Airtable when every `ALLOW`, `REVIEW`, and `HALT` decision needs to persist off-host.
+
+Set these environment variables on Render:
+
+```text
+AIRTABLE_AUDIT_ENABLED=true
+AIRTABLE_API_KEY=pat_your_airtable_token
+AIRTABLE_BASE_ID=app_your_base_id
+AIRTABLE_AUDIT_TABLE_NAME=CASA Audit
+CASA_AUDIT_LOG_PATH=audit_log.jsonl
+```
+
+`AIRTABLE_PERSONAL_ACCESS_TOKEN` is also accepted in place of `AIRTABLE_API_KEY`. If `AIRTABLE_AUDIT_ENABLED` is omitted, the sink turns on automatically when the Airtable token, base ID, and table name are present.
+
+Create an Airtable table with these fields:
+
+| Field | Suggested type |
+| --- | --- |
+| `Timestamp` | Date/time |
+| `Decision` | Single select: `ALLOW`, `REVIEW`, `HALT` |
+| `Source` | Single line text |
+| `Document Type` | Single line text |
+| `Project ID` | Single line text |
+| `Spec Section` | Single line text |
+| `Priority Level` | Number |
+| `Assigned Subcontractor` | Single line text |
+| `Confidence Score` | Number |
+| `Human Review Required` | Checkbox |
+| `Required Action` | Long text |
+| `Reason` | Long text |
+| `Audit Tags` | Long text |
+| `Detected Risks` | Long text |
+| `Missing Fields` | Long text |
+| `Summary` | Long text |
+| `System Version` | Single line text |
+| `Audit Record JSON` | Long text |
+
+When Airtable is enabled, `/route-document` returns a success response only after the JSONL append and Airtable write complete. If Airtable rejects the record or is unreachable, the API returns `502` so the automation does not treat an unpersisted decision as complete.
+
 ## Free-Tier Deployment
 
 This repo includes `render.yaml` for Render Free web service deployment.
@@ -112,7 +155,7 @@ Webhook intake
 -> ALLOW: standard routing
 -> REVIEW: PM/document-control alert
 -> HALT: urgent safety/leadership alert
--> Optional audit log to Google Sheets/Airtable/Notion
+-> Airtable audit row written by hosted CASA API
 ```
 
 ## Run Tests
@@ -143,6 +186,7 @@ casa_construction_gatekeeper/
 |       `-- main.py
 |-- tests/
 |   |-- test_api.py
+|   |-- test_audit_airtable.py
 |   |-- test_models.py
 |   |-- test_policies.py
 |   `-- test_router.py

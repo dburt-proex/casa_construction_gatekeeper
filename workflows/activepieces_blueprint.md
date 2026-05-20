@@ -8,7 +8,21 @@ This blueprint uses Activepieces as the no-code automation layer and Render Free
 - Action: `HTTP`
 - Branching: `Condition`
 - Notification: Slack, Gmail, Microsoft Teams, or email
-- Optional logging: Google Sheets, Airtable, Notion, or another table/database
+- Audit ledger: Airtable table written by the hosted CASA API
+
+## Render Environment
+
+Set these variables on the Render service before the Benike-style demo:
+
+```text
+AIRTABLE_AUDIT_ENABLED=true
+AIRTABLE_API_KEY=pat_your_airtable_token
+AIRTABLE_BASE_ID=app_your_base_id
+AIRTABLE_AUDIT_TABLE_NAME=CASA Audit
+CASA_AUDIT_LOG_PATH=audit_log.jsonl
+```
+
+The Airtable table should include the fields listed in the README's Airtable Audit Sink section. Each successful `/route-document` call writes one row, so Activepieces does not need a second logging step.
 
 ## CASA API Endpoint
 
@@ -38,13 +52,13 @@ Body:
 ```text
 Webhook: Construction document intake
   -> HTTP POST: CASA /route-document
+       -> CASA appends JSONL and writes one Airtable audit row
   -> Condition: decision == "ALLOW"
        -> Standard routing placeholder
   -> Condition: decision == "REVIEW"
        -> Notify PM / document control
   -> Condition: decision == "HALT"
        -> Urgent safety or leadership alert
-  -> Optional: log full audit_record to a sheet/database
 ```
 
 ## Example Webhook Payload
@@ -65,7 +79,18 @@ Webhook: Construction document intake
   "project_id": "8821",
   "priority_level": 2,
   "reason": "Required fields are present, confidence is acceptable, and no blocking risk was detected.",
-  "required_action": "Continue standard routing workflow."
+  "required_action": "Continue standard routing workflow.",
+  "audit_record": {
+    "source": "activepieces",
+    "document": {
+      "document_type": "RFI",
+      "project_id": "8821"
+    },
+    "decision": {
+      "decision": "ALLOW",
+      "priority_level": 2
+    }
+  }
 }
 ```
 
@@ -74,10 +99,11 @@ Webhook: Construction document intake
 - `ALLOW`: continue to Procore, document control, or standard project routing.
 - `REVIEW`: send to project manager, project engineer, or document control queue.
 - `HALT`: send immediate safety/leadership alert and stop automated routing.
+- Airtable persistence happens before the HTTP response succeeds. If the HTTP step receives `502`, treat it as an audit persistence failure and retry or alert the operator.
 
 ## Free-Tier Constraints
 
 - Render Free sleeps after inactivity, so the first request after idle may be slow.
 - Keep document text reasonably small for webhook payloads.
 - Do not rely on local `audit_log.jsonl` for permanent hosted storage because free hosting filesystems are ephemeral.
-- For a free audit ledger, write `audit_record` to Google Sheets, Airtable free tier, Notion, or a database-backed service.
+- Use Airtable as the off-host audit ledger for the hosted pilot; JSONL remains useful for local inspection and Render logs/debugging.
