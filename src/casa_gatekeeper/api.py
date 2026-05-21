@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+import os
+import secrets
+from typing import Annotated, Any, Dict
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from casa_gatekeeper import __version__
@@ -14,12 +16,25 @@ from casa_gatekeeper.router import route_document
 
 load_dotenv()
 
+MAX_DOCUMENT_TEXT_LENGTH = 20000
+MAX_SOURCE_LENGTH = 80
+API_KEY_HEADER_NAME = "X-CASA-API-Key"
+
 
 class RouteDocumentRequest(BaseModel):
     """Incoming document payload for automation platforms."""
 
-    text: str = Field(min_length=1, description="Raw RFI, submittal, change order, or field issue text.")
-    source: str = Field(default="api", description="Source system label, such as activepieces, n8n, zapier, or procore.")
+    text: str = Field(
+        min_length=1,
+        max_length=MAX_DOCUMENT_TEXT_LENGTH,
+        description="Raw RFI, submittal, change order, or field issue text.",
+    )
+    source: str = Field(
+        default="api",
+        min_length=1,
+        max_length=MAX_SOURCE_LENGTH,
+        description="Source system label, such as activepieces, n8n, zapier, or procore.",
+    )
 
 
 class RouteDocumentResponse(BaseModel):
@@ -48,6 +63,20 @@ app = FastAPI(
 )
 
 
+def _configured_api_token() -> str | None:
+    token = os.getenv("CASA_API_TOKEN", "").strip()
+    return token or None
+
+
+def _require_api_token(provided_api_key: str | None) -> None:
+    configured_token = _configured_api_token()
+    if not configured_token:
+        return
+
+    if not provided_api_key or not secrets.compare_digest(provided_api_key, configured_token):
+        raise HTTPException(status_code=401, detail="Missing or invalid API key.")
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Health check endpoint for hosting providers and workflow tools."""
@@ -56,9 +85,13 @@ def health() -> dict[str, str]:
 
 
 @app.post("/route-document", response_model=RouteDocumentResponse)
-def route_document_endpoint(payload: RouteDocumentRequest) -> RouteDocumentResponse:
+def route_document_endpoint(
+    payload: RouteDocumentRequest,
+    api_key: Annotated[str | None, Header(alias=API_KEY_HEADER_NAME)] = None,
+) -> RouteDocumentResponse:
     """Classify and route a construction document."""
 
+    _require_api_token(api_key)
     result = route_document(payload.text, source=payload.source)
     try:
         persist_audit_record(result["audit_record"])

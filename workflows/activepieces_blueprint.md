@@ -12,9 +12,10 @@ This blueprint uses Activepieces as the no-code automation layer and Render Free
 
 ## Render Environment
 
-Set these variables on the Render service before the Benike-style demo:
+Set these variables on the Render service before the operator demo:
 
 ```text
+CASA_API_TOKEN=your-private-token
 AIRTABLE_AUDIT_ENABLED=true
 AIRTABLE_API_KEY=pat_your_airtable_token
 AIRTABLE_BASE_ID=app_your_base_id
@@ -35,6 +36,7 @@ POST https://YOUR-RENDER-SERVICE.onrender.com/route-document
 Headers:
 
 ```text
+X-CASA-API-Key: your-private-token
 Content-Type: application/json
 ```
 
@@ -52,6 +54,7 @@ Body:
 ```text
 Webhook: Construction document intake
   -> HTTP POST: CASA /route-document
+       -> Include X-CASA-API-Key header
        -> CASA appends JSONL and writes one Airtable audit row
   -> Condition: decision == "ALLOW"
        -> Standard routing placeholder
@@ -100,6 +103,7 @@ Webhook: Construction document intake
 - `REVIEW`: send to project manager, project engineer, or document control queue.
 - `HALT`: send immediate safety/leadership alert and stop automated routing.
 - Airtable persistence happens before the HTTP response succeeds. If the HTTP step receives `502`, treat it as an audit persistence failure and retry or alert the operator.
+- If the HTTP step receives `401`, confirm the `X-CASA-API-Key` header matches `CASA_API_TOKEN` on Render.
 
 ## Free-Tier Constraints
 
@@ -107,3 +111,4 @@ Webhook: Construction document intake
 - Keep document text reasonably small for webhook payloads.
 - Do not rely on local `audit_log.jsonl` for permanent hosted storage because free hosting filesystems are ephemeral.
 - Use Airtable as the off-host audit ledger for the hosted pilot; JSONL remains useful for local inspection and Render logs/debugging.
+- Do not include external company names, customer names, or implied affiliations in demo payloads or workflow names without written permission.

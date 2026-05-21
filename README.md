@@ -4,6 +4,8 @@ CASA Construction Gatekeeper is a deterministic AI governance layer for construc
 
 CASA stands for Controlled Awareness Systems Architecture. This repository implements the Construction Gatekeeper as a pre-execution control layer before workflow automation.
 
+The service-product version is packaged as a managed construction-intake governance API: Render hosts the routing service, Airtable stores the off-host audit ledger, and Activepieces handles operator workflow branching.
+
 ## Problem
 
 Construction teams lose time when RFIs, submittals, change orders, and urgent field issues are routed with missing context, low confidence, or unmanaged risk. A misrouted safety issue, incomplete RFI, or delayed inspection notice can create downstream cost, schedule, and liability exposure.
@@ -62,6 +64,13 @@ Start the local HTTP API:
 uvicorn casa_gatekeeper.api:app --reload
 ```
 
+Optional local auth check:
+
+```powershell
+$env:CASA_API_TOKEN="local-dev-token"
+uvicorn casa_gatekeeper.api:app --reload
+```
+
 Health check:
 
 ```powershell
@@ -72,6 +81,7 @@ Route a document:
 
 ```powershell
 curl -X POST http://127.0.0.1:8000/route-document `
+  -H "X-CASA-API-Key: local-dev-token" `
   -H "Content-Type: application/json" `
   -d "{\"text\":\"RFI for Project #8821, HVAC clash, spec section 23 00 00, submitted by Northline Mechanical.\",\"source\":\"local-api\"}"
 ```
@@ -80,6 +90,21 @@ The API returns a flattened response for no-code automation tools plus the full 
 
 Successful API requests also append the full audit record to the JSONL audit log. Set `CASA_AUDIT_LOG_PATH` to choose the local path; it defaults to `audit_log.jsonl`.
 
+### Hosted API Security
+
+Set `CASA_API_TOKEN` on hosted deployments to require this header on `POST /route-document`:
+
+```text
+X-CASA-API-Key: your-private-token
+```
+
+If `CASA_API_TOKEN` is unset or blank, `/route-document` remains open for local development. `GET /health` remains unauthenticated for uptime checks.
+
+Payload bounds:
+
+- `text`: 1 to 20,000 characters.
+- `source`: 1 to 80 characters.
+
 ## Airtable Audit Sink
 
 For a hosted pilot, Render's local filesystem is ephemeral. Keep JSONL enabled for local debugging, and turn on Airtable when every `ALLOW`, `REVIEW`, and `HALT` decision needs to persist off-host.
@@ -87,6 +112,7 @@ For a hosted pilot, Render's local filesystem is ephemeral. Keep JSONL enabled f
 Set these environment variables on Render:
 
 ```text
+CASA_API_TOKEN=your-private-token
 AIRTABLE_AUDIT_ENABLED=true
 AIRTABLE_API_KEY=pat_your_airtable_token
 AIRTABLE_BASE_ID=app_your_base_id
@@ -136,6 +162,17 @@ Build Command: pip install -r requirements.txt && pip install -e .
 Start Command: uvicorn casa_gatekeeper.api:app --host 0.0.0.0 --port $PORT
 ```
 
+Required launch environment:
+
+```text
+CASA_API_TOKEN
+CASA_AUDIT_LOG_PATH
+AIRTABLE_AUDIT_ENABLED
+AIRTABLE_API_KEY
+AIRTABLE_BASE_ID
+AIRTABLE_AUDIT_TABLE_NAME
+```
+
 After deployment, call:
 
 ```text
@@ -151,6 +188,7 @@ Use `workflows/activepieces_blueprint.md` for the free-tier automation plan:
 ```text
 Webhook intake
 -> HTTP POST to CASA API
+-> Include X-CASA-API-Key header
 -> Condition on decision
 -> ALLOW: standard routing
 -> REVIEW: PM/document-control alert
@@ -163,6 +201,49 @@ Webhook intake
 ```powershell
 python -m pytest
 ```
+
+## Operator Demo Script
+
+Use these three requests to demonstrate the full decision range. Replace `YOUR_RENDER_SERVICE` and `YOUR_TOKEN` before running.
+
+ALLOW:
+
+```powershell
+curl -X POST https://YOUR_RENDER_SERVICE.onrender.com/route-document `
+  -H "X-CASA-API-Key: YOUR_TOKEN" `
+  -H "Content-Type: application/json" `
+  -d "{\"text\":\"RFI for Project #8821. Need clarification for spec section 23 00 00. Submitted by Northline Mechanical.\",\"source\":\"launch-smoke-test\"}"
+```
+
+REVIEW:
+
+```powershell
+curl -X POST https://YOUR_RENDER_SERVICE.onrender.com/route-document `
+  -H "X-CASA-API-Key: YOUR_TOKEN" `
+  -H "Content-Type: application/json" `
+  -d "{\"text\":\"Field issue: blocked crew with schedule impact. Cannot proceed until layout conflict is resolved.\",\"source\":\"launch-smoke-test\"}"
+```
+
+HALT:
+
+```powershell
+curl -X POST https://YOUR_RENDER_SERVICE.onrender.com/route-document `
+  -H "X-CASA-API-Key: YOUR_TOKEN" `
+  -H "Content-Type: application/json" `
+  -d "{\"text\":\"Project ID: 8821. Field issue: hazardous condition and immediate danger near active work zone.\",\"source\":\"launch-smoke-test\"}"
+```
+
+## Service Launch Checklist
+
+- Confirm the repo has no external company-name references in current tracked files.
+- Push the latest commit to `main`.
+- Confirm Render redeploys the latest commit.
+- Set `CASA_API_TOKEN`, `CASA_AUDIT_LOG_PATH`, and Airtable env vars on Render.
+- Confirm `GET /health` returns `200`.
+- Run the ALLOW, REVIEW, and HALT smoke tests with `X-CASA-API-Key`.
+- Verify Airtable receives all three audit rows.
+- Configure Activepieces webhook -> CASA HTTP step -> decision branch -> routing/review/halt alerts.
+- Capture the smoke-test outputs and Airtable rows for the sales/demo handoff.
 
 ## Repository Structure
 
@@ -236,3 +317,7 @@ Required Action: Continue standard routing workflow.
 - Pydantic AI / LLM extraction layer behind deterministic validation.
 - Operator dashboard for exception handling and routing visibility.
 - Managed pilot workflow for general contractors.
+
+## Compliance Note
+
+CASA Construction Gatekeeper is a neutral product asset. Do not use external company names, customer names, or implied affiliations in demos, source labels, page paths, sales copy, or workflow examples without written permission. CASA provides decision support, routing governance, and audit evidence; it does not replace legal, safety, engineering, or project-authority judgment.
