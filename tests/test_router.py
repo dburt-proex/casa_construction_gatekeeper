@@ -5,7 +5,7 @@ from casa_gatekeeper.router import route_document
 def test_route_document_allows_clean_rfi():
     result = route_document(
         "RFI for Project #8821. Need clarification for spec section 23 00 00. "
-        "Submitted by Northline Mechanical.",
+        "Submitted by Mechanical Trade Partner.",
         source="test",
     )
 

@@ -8,3 +8,17 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.13
+      - key: CASA_API_TOKEN
+        sync: false
+      - key: CASA_DEMO_TOKEN
+        sync: false
+      - key: CASA_AUDIT_LOG_PATH
+        value: audit_log.jsonl
+      - key: AIRTABLE_AUDIT_ENABLED
+        value: "true"
+      - key: AIRTABLE_API_KEY
+        sync: false
+      - key: AIRTABLE_BASE_ID
+        sync: false
+      - key: AIRTABLE_AUDIT_TABLE_NAME
+        value: CASA Audit

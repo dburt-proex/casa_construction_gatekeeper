@@ -68,7 +68,7 @@ Webhook: Construction document intake
 
 ```json
 {
-  "document_text": "RFI for Project #8821, HVAC clash, spec section 23 00 00, submitted by Northline Mechanical.",
+  "document_text": "RFI for Project #8821, HVAC clash, spec section 23 00 00, submitted by Mechanical Trade Partner.",
   "source": "manual-test"
 }
 ```

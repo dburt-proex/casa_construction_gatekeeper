@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CASA Construction Gatekeeper Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8f5;
+        --ink: #18201d;
+        --muted: #68746d;
+        --line: #dce2dd;
+        --panel: #ffffff;
+        --panel-2: #eef4f0;
+        --accent: #20745f;
+        --accent-2: #a55d19;
+        --danger: #a23a31;
+        --shadow: 0 18px 50px rgba(21, 31, 26, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(240px, 310px) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        padding: 32px 28px;
+        border-right: 1px solid var(--line);
+        background: #fbfcfa;
+      }
+
+      .brand {
+        display: grid;
+        gap: 10px;
+      }
+
+      .mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #b8c7be;
+        background: var(--panel-2);
+        color: var(--accent);
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .positioning {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .nav {
+        display: grid;
+        gap: 8px;
+      }
+
+      .tab {
+        width: 100%;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 13px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .tab[aria-selected="true"] {
+        border-color: #cbd8d0;
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: 0 10px 24px rgba(22, 39, 31, 0.06);
+      }
+
+      .status-card {
+        margin-top: auto;
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .status-row strong {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      main {
+        padding: 34px;
+      }
+
+      .workspace {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: grid;
+        gap: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .topbar h2 {
+        margin: 0;
+        font-size: 31px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .live-state {
+        min-width: 156px;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 14px;
+        border: 1px solid #bfcec4;
+        background: #eef6f1;
+        color: #17664f;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .route-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        min-height: 620px;
+      }
+
+      .input-side,
+      .result-side {
+        padding: 24px;
+      }
+
+      .input-side {
+        border-right: 1px solid var(--line);
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 348px;
+        resize: vertical;
+        padding: 18px;
+        border: 1px solid #cdd8d0;
+        outline: none;
+        background: #fbfcfa;
+        color: var(--ink);
+        line-height: 1.55;
+      }
+
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(32, 116, 95, 0.12);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+
+      .primary,
+      .secondary,
+      .sample {
+        min-height: 42px;
+        border: 1px solid transparent;
+        padding: 0 15px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 740;
+      }
+
+      .primary {
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      .primary:disabled {
+        cursor: wait;
+        opacity: 0.72;
+      }
+
+      .secondary,
+      .sample {
+        background: #f7faf8;
+        border-color: #cbd8d0;
+        color: var(--ink);
+      }
+
+      .helper {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .decision-card {
+        display: grid;
+        gap: 16px;
+      }
+
+      .decision-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .decision {
+        font-size: 46px;
+        line-height: 0.95;
+        letter-spacing: 0;
+        font-weight: 850;
+      }
+
+      .decision.allow {
+        color: var(--accent);
+      }
+
+      .decision.review {
+        color: var(--accent-2);
+      }
+
+      .decision.halt {
+        color: var(--danger);
+      }
+
+      .audit-pill {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 11px;
+        background: #edf5f0;
+        color: #19634f;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .reason {
+        margin: 0;
+        color: var(--ink);
+        font-size: 17px;
+        line-height: 1.5;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        min-height: 74px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        background: #fbfcfa;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--ink);
+        font-size: 16px;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+
+      .tag-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 7px 9px;
+        background: #eef2ef;
+        color: #47544d;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      pre {
+        overflow: auto;
+        max-height: 240px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        background: #141a18;
+        color: #dcebe3;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .samples-grid,
+      .proof-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .sample-card,
+      .proof-card {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .sample-card h3,
+      .proof-card h3 {
+        margin: 0;
+        font-size: 19px;
+        letter-spacing: 0;
+      }
+
+      .sample-card p,
+      .proof-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+        font-size: 14px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .error {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid #e1b7b0;
+        background: #fff4f1;
+        color: #8e2d25;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 920px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .route-grid,
+        .samples-grid,
+        .proof-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .input-side {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        main {
+          padding: 22px;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .decision {
+          font-size: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">C</div>
+          <h1>CASA Construction Gatekeeper</h1>
+          <p class="positioning">
+            Governed construction intake for routing decisions, review escalation, and audit evidence.
+          </p>
+        </div>
+
+        <nav class="nav" aria-label="Dashboard sections">
+          <button class="tab" data-tab="route" aria-selected="true">
+            <span>Route</span><strong>01</strong>
+          </button>
+          <button class="tab" data-tab="samples" aria-selected="false">
+            <span>Samples</span><strong>02</strong>
+          </button>
+          <button class="tab" data-tab="proof" aria-selected="false">
+            <span>Proof</span><strong>03</strong>
+          </button>
+        </nav>
+
+        <div class="status-card">
+          <div class="status-row"><span>API</span><strong id="api-status">Checking</strong></div>
+          <div class="status-row"><span>Audit Sink</span><strong>Airtable</strong></div>
+          <div class="status-row"><span>Mode</span><strong>Private Demo</strong></div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="workspace">
+          <div class="topbar">
+            <h2 id="view-title">Route a document</h2>
+            <div class="live-state" id="live-state">Live API</div>
+          </div>
+
+          <section id="route" class="panel route-grid" data-panel>
+            <div class="input-side">
+              <p class="section-title">Construction Intake</p>
+              <textarea id="document-text" maxlength="20000">
+RFI for Project #8821. Need clarification for spec section 23 00 00. Submitted by Mechanical Trade Partner.</textarea
+              >
+              <div class="actions">
+                <button class="primary" id="route-button">Route Document</button>
+                <button class="secondary" id="clear-button">Clear</button>
+              </div>
+              <p class="helper">Every successful route writes the governed audit record through the hosted API.</p>
+              <div id="error" class="error hidden"></div>
+            </div>
+
+            <div class="result-side">
+              <p class="section-title">Decision Output</p>
+              <div class="decision-card" id="result-card">
+                <div class="decision-header">
+                  <div class="decision" id="decision">Ready</div>
+                  <div class="audit-pill" id="audit-status">Awaiting route</div>
+                </div>
+                <p class="reason" id="reason">
+                  Submit a document to generate a governed routing decision and audit record.
+                </p>
+                <div class="meta-grid">
+                  <div class="metric"><span>Document Type</span><strong id="document-type">-</strong></div>
+                  <div class="metric"><span>Project ID</span><strong id="project-id">-</strong></div>
+                  <div class="metric"><span>Spec Section</span><strong id="spec-section">-</strong></div>
+                  <div class="metric"><span>Confidence</span><strong id="confidence">-</strong></div>
+                  <div class="metric"><span>Priority</span><strong id="priority">-</strong></div>
+                  <div class="metric"><span>Human Review</span><strong id="review-required">-</strong></div>
+                </div>
+                <div>
+                  <p class="section-title">Required Action</p>
+                  <p class="reason" id="required-action">-</p>
+                </div>
+                <div>
+                  <p class="section-title">Audit Tags</p>
+                  <div class="tag-row" id="audit-tags"><span class="tag">No tags yet</span></div>
+                </div>
+                <div>
+                  <p class="section-title">Audit Record JSON</p>
+                  <pre id="audit-json">{}</pre>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="samples" class="samples-grid hidden" data-panel>
+            <article class="sample-card">
+              <h3>ALLOW</h3>
+              <p>Complete RFI with project ID, spec section, and no blocking risk.</p>
+              <button class="sample" data-sample="allow">Load Sample</button>
+            </article>
+            <article class="sample-card">
+              <h3>REVIEW</h3>
+              <p>Schedule-impact field issue that needs a human routing check.</p>
+              <button class="sample" data-sample="review">Load Sample</button>
+            </article>
+            <article class="sample-card">
+              <h3>HALT</h3>
+              <p>Safety-critical language that stops automated routing.</p>
+              <button class="sample" data-sample="halt">Load Sample</button>
+            </article>
+          </section>
+
+          <section id="proof" class="proof-grid hidden" data-panel>
+            <article class="proof-card">
+              <h3>Decision Control</h3>
+              <p>Each intake item resolves into ALLOW, REVIEW, or HALT with a plain-language reason.</p>
+            </article>
+            <article class="proof-card">
+              <h3>Audit Persistence</h3>
+              <p>Successful routes append local JSONL and write the off-host audit row when Airtable is enabled.</p>
+            </article>
+            <article class="proof-card">
+              <h3>Sales Demo Ready</h3>
+              <p>The same live service backs PowerShell tests, Activepieces flows, and this private customer demo.</p>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const samples = {
+        allow:
+          "RFI for Project #8821. Need clarification for spec section 23 00 00. Submitted by Mechanical Trade Partner.",
+        review:
+          "Field issue: blocked crew with schedule impact. Cannot proceed until layout conflict is resolved.",
+        halt:
+          "Project ID: 8821. Field issue: hazardous condition and immediate danger near active work zone.",
+      };
+
+      const titles = {
+        route: "Route a document",
+        samples: "Run decision samples",
+        proof: "Show proof",
+      };
+
+      const textArea = document.querySelector("#document-text");
+      const routeButton = document.querySelector("#route-button");
+      const clearButton = document.querySelector("#clear-button");
+      const errorBox = document.querySelector("#error");
+
+      function setTab(name) {
+        document.querySelectorAll("[data-tab]").forEach((tab) => {
+          tab.setAttribute("aria-selected", String(tab.dataset.tab === name));
+        });
+        document.querySelectorAll("[data-panel]").forEach((panel) => {
+          panel.classList.toggle("hidden", panel.id !== name);
+        });
+        document.querySelector("#view-title").textContent = titles[name];
+      }
+
+      function tagList(values) {
+        const items = values && values.length ? values : ["none"];
+        return items.map((value) => `<span class="tag">${String(value)}</span>`).join("");
+      }
+
+      function setDecisionClass(decision) {
+        const node = document.querySelector("#decision");
+        node.className = "decision";
+        if (decision) {
+          node.classList.add(decision.toLowerCase());
+        }
+      }
+
+      function renderResult(data) {
+        setDecisionClass(data.decision);
+        document.querySelector("#decision").textContent = data.decision;
+        document.querySelector("#audit-status").textContent = "Audit saved";
+        document.querySelector("#reason").textContent = data.reason;
+        document.querySelector("#document-type").textContent = data.document_type;
+        document.querySelector("#project-id").textContent = data.project_id || "Missing";
+        document.querySelector("#spec-section").textContent = data.spec_section || "Missing";
+        document.querySelector("#confidence").textContent = Number(data.confidence_score).toFixed(2);
+        document.querySelector("#priority").textContent = data.priority_level;
+        document.querySelector("#review-required").textContent = data.human_review_required ? "Yes" : "No";
+        document.querySelector("#required-action").textContent = data.required_action;
+        document.querySelector("#audit-tags").innerHTML = tagList(data.audit_tags);
+        document.querySelector("#audit-json").textContent = JSON.stringify(data.audit_record, null, 2);
+      }
+
+      async function checkHealth() {
+        try {
+          const response = await fetch("/health");
+          if (!response.ok) throw new Error("health check failed");
+          const data = await response.json();
+          document.querySelector("#api-status").textContent = data.status === "ok" ? "Online" : "Check";
+          document.querySelector("#live-state").textContent = "Live API";
+        } catch {
+          document.querySelector("#api-status").textContent = "Offline";
+          document.querySelector("#live-state").textContent = "Check API";
+        }
+      }
+
+      async function routeDocument() {
+        errorBox.classList.add("hidden");
+        routeButton.disabled = true;
+        routeButton.textContent = "Routing";
+        try {
+          const response = await fetch("/demo/route", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: textArea.value.trim(),
+              source: "customer-demo",
+            }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.detail || "Routing failed.");
+          }
+          renderResult(payload);
+        } catch (error) {
+          errorBox.textContent = error.message;
+          errorBox.classList.remove("hidden");
+        } finally {
+          routeButton.disabled = false;
+          routeButton.textContent = "Route Document";
+        }
+      }
+
+      document.querySelectorAll("[data-tab]").forEach((tab) => {
+        tab.addEventListener("click", () => setTab(tab.dataset.tab));
+      });
+
+      document.querySelectorAll("[data-sample]").forEach((button) => {
+        button.addEventListener("click", () => {
+          textArea.value = samples[button.dataset.sample];
+          setTab("route");
+        });
+      });
+
+      routeButton.addEventListener("click", routeDocument);
+      clearButton.addEventListener("click", () => {
+        textArea.value = "";
+        textArea.focus();
+      });
+
+      checkHealth();
+    </script>
+  </body>
+</html>

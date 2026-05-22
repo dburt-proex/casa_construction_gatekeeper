@@ -83,7 +83,7 @@ Route a document:
 curl -X POST http://127.0.0.1:8000/route-document `
   -H "X-CASA-API-Key: local-dev-token" `
   -H "Content-Type: application/json" `
-  -d "{\"text\":\"RFI for Project #8821, HVAC clash, spec section 23 00 00, submitted by Northline Mechanical.\",\"source\":\"local-api\"}"
+  -d "{\"text\":\"RFI for Project #8821, HVAC clash, spec section 23 00 00, submitted by Mechanical Trade Partner.\",\"source\":\"local-api\"}"
 ```
 
 The API returns a flattened response for no-code automation tools plus the full audit record.
@@ -105,6 +105,22 @@ Payload bounds:
 - `text`: 1 to 20,000 characters.
 - `source`: 1 to 80 characters.
 
+### Private Demo Dashboard
+
+Set `CASA_DEMO_TOKEN` on hosted deployments to enable the customer-facing demo dashboard:
+
+```text
+CASA_DEMO_TOKEN=your-private-demo-token
+```
+
+Open the dashboard with:
+
+```text
+https://YOUR-RENDER-SERVICE.onrender.com/demo?token=your-private-demo-token
+```
+
+The dashboard stores demo access in a short-lived HTTP-only cookie and posts to `POST /demo/route`. The browser never receives `CASA_API_TOKEN`; that token remains reserved for direct API clients such as Activepieces or scripted smoke tests.
+
 ## Airtable Audit Sink
 
 For a hosted pilot, Render's local filesystem is ephemeral. Keep JSONL enabled for local debugging, and turn on Airtable when every `ALLOW`, `REVIEW`, and `HALT` decision needs to persist off-host.
@@ -113,6 +129,7 @@ Set these environment variables on Render:
 
 ```text
 CASA_API_TOKEN=your-private-token
+CASA_DEMO_TOKEN=your-private-demo-token
 AIRTABLE_AUDIT_ENABLED=true
 AIRTABLE_API_KEY=pat_your_airtable_token
 AIRTABLE_BASE_ID=app_your_base_id
@@ -166,6 +183,7 @@ Required launch environment:
 
 ```text
 CASA_API_TOKEN
+CASA_DEMO_TOKEN
 CASA_AUDIT_LOG_PATH
 AIRTABLE_AUDIT_ENABLED
 AIRTABLE_API_KEY
@@ -177,6 +195,12 @@ After deployment, call:
 
 ```text
 POST https://YOUR-RENDER-SERVICE.onrender.com/route-document
+```
+
+Customer demo dashboard:
+
+```text
+GET https://YOUR-RENDER-SERVICE.onrender.com/demo?token=YOUR_DEMO_TOKEN
 ```
 
 Render Free may sleep after inactivity, so first requests after idle can be slow. For a free pilot, that is acceptable. For production, use a paid always-on service.
@@ -212,7 +236,7 @@ ALLOW:
 curl -X POST https://YOUR_RENDER_SERVICE.onrender.com/route-document `
   -H "X-CASA-API-Key: YOUR_TOKEN" `
   -H "Content-Type: application/json" `
-  -d "{\"text\":\"RFI for Project #8821. Need clarification for spec section 23 00 00. Submitted by Northline Mechanical.\",\"source\":\"launch-smoke-test\"}"
+  -d "{\"text\":\"RFI for Project #8821. Need clarification for spec section 23 00 00. Submitted by Mechanical Trade Partner.\",\"source\":\"launch-smoke-test\"}"
 ```
 
 REVIEW:
@@ -241,6 +265,7 @@ curl -X POST https://YOUR_RENDER_SERVICE.onrender.com/route-document `
 - Set `CASA_API_TOKEN`, `CASA_AUDIT_LOG_PATH`, and Airtable env vars on Render.
 - Confirm `GET /health` returns `200`.
 - Run the ALLOW, REVIEW, and HALT smoke tests with `X-CASA-API-Key`.
+- Open `/demo?token=YOUR_DEMO_TOKEN` and run the same three cases through the dashboard.
 - Verify Airtable receives all three audit rows.
 - Configure Activepieces webhook -> CASA HTTP step -> decision branch -> routing/review/halt alerts.
 - Capture the smoke-test outputs and Airtable rows for the sales/demo handoff.
@@ -264,7 +289,9 @@ casa_construction_gatekeeper/
 |       |-- router.py
 |       |-- audit.py
 |       |-- api.py
-|       `-- main.py
+|       |-- main.py
+|       `-- static/
+|           `-- demo.html
 |-- tests/
 |   |-- test_api.py
 |   |-- test_audit_airtable.py

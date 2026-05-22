@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import secrets
+from pathlib import Path
 from typing import Annotated, Any, Dict
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from starlette.responses import HTMLResponse
 
 from casa_gatekeeper import __version__
 from casa_gatekeeper.audit import AuditSinkError, persist_audit_record, to_serializable_dict
@@ -19,6 +21,10 @@ load_dotenv()
 MAX_DOCUMENT_TEXT_LENGTH = 20000
 MAX_SOURCE_LENGTH = 80
 API_KEY_HEADER_NAME = "X-CASA-API-Key"
+DEMO_TOKEN_HEADER_NAME = "X-CASA-Demo-Token"
+DEMO_COOKIE_NAME = "casa_demo_access"
+DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 6
+DEMO_HTML_PATH = Path(__file__).with_name("static") / "demo.html"
 
 
 class RouteDocumentRequest(BaseModel):
@@ -68,6 +74,11 @@ def _configured_api_token() -> str | None:
     return token or None
 
 
+def _configured_demo_token() -> str | None:
+    token = os.getenv("CASA_DEMO_TOKEN", "").strip()
+    return token or None
+
+
 def _require_api_token(provided_api_key: str | None) -> None:
     configured_token = _configured_api_token()
     if not configured_token:
@@ -77,21 +88,16 @@ def _require_api_token(provided_api_key: str | None) -> None:
         raise HTTPException(status_code=401, detail="Missing or invalid API key.")
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Health check endpoint for hosting providers and workflow tools."""
+def _require_demo_token(provided_demo_token: str | None) -> None:
+    configured_token = _configured_demo_token()
+    if not configured_token:
+        raise HTTPException(status_code=503, detail="CASA demo dashboard is not configured.")
 
-    return {"status": "ok", "system": "casa-construction-gatekeeper", "version": __version__}
+    if not provided_demo_token or not secrets.compare_digest(provided_demo_token, configured_token):
+        raise HTTPException(status_code=401, detail="Missing or invalid demo token.")
 
 
-@app.post("/route-document", response_model=RouteDocumentResponse)
-def route_document_endpoint(
-    payload: RouteDocumentRequest,
-    api_key: Annotated[str | None, Header(alias=API_KEY_HEADER_NAME)] = None,
-) -> RouteDocumentResponse:
-    """Classify and route a construction document."""
-
-    _require_api_token(api_key)
+def _route_document(payload: RouteDocumentRequest) -> RouteDocumentResponse:
     result = route_document(payload.text, source=payload.source)
     try:
         persist_audit_record(result["audit_record"])
@@ -118,3 +124,56 @@ def route_document_endpoint(
         audit_tags=decision["audit_tags"],
         audit_record=audit_record,
     )
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Health check endpoint for hosting providers and workflow tools."""
+
+    return {"status": "ok", "system": "casa-construction-gatekeeper", "version": __version__}
+
+
+@app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
+def demo_dashboard(
+    request: Request,
+    token: Annotated[str | None, Query(alias="token")] = None,
+) -> HTMLResponse:
+    """Serve the private customer-facing demo dashboard."""
+
+    demo_token = token or request.cookies.get(DEMO_COOKIE_NAME)
+    _require_demo_token(demo_token)
+
+    response = HTMLResponse(DEMO_HTML_PATH.read_text(encoding="utf-8"))
+    if token:
+        response.set_cookie(
+            key=DEMO_COOKIE_NAME,
+            value=token,
+            max_age=DEMO_COOKIE_MAX_AGE_SECONDS,
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="lax",
+        )
+    return response
+
+
+@app.post("/demo/route", response_model=RouteDocumentResponse, include_in_schema=False)
+def demo_route_document_endpoint(
+    payload: RouteDocumentRequest,
+    request: Request,
+    demo_token: Annotated[str | None, Header(alias=DEMO_TOKEN_HEADER_NAME)] = None,
+) -> RouteDocumentResponse:
+    """Route a document from the private demo dashboard."""
+
+    _require_demo_token(demo_token or request.cookies.get(DEMO_COOKIE_NAME))
+    return _route_document(payload)
+
+
+@app.post("/route-document", response_model=RouteDocumentResponse)
+def route_document_endpoint(
+    payload: RouteDocumentRequest,
+    api_key: Annotated[str | None, Header(alias=API_KEY_HEADER_NAME)] = None,
+) -> RouteDocumentResponse:
+    """Classify and route a construction document."""
+
+    _require_api_token(api_key)
+    return _route_document(payload)

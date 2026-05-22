@@ -16,7 +16,7 @@ def test_audit_record_can_serialize():
         spec_section="23 00 00",
         document_type=DocumentType.RFI,
         priority_level=2,
-        assigned_subcontractor="Northline Mechanical",
+        assigned_subcontractor="Mechanical Trade Partner",
         summary="RFI for HVAC clash.",
         detected_risks=["coordination_conflict"],
         missing_fields=[],
