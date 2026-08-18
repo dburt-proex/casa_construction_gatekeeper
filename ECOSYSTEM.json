@@ -1,0 +1,9 @@
+{
+  "registry": "dburt-proex/operator-intelligence:ecosystem/registry.json",
+  "registry_version": "1.0.0",
+  "repository": "dburt-proex/casa_construction_gatekeeper",
+  "classification": "CONSUMER",
+  "authority_for": [],
+  "may_define_new_primitives": false,
+  "consumes": ["execution_governance_control_plane"]
+}
